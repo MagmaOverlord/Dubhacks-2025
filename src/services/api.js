@@ -13,13 +13,13 @@ const api = axios.create({
 export const fridgeAPI = {
   // Get all items in fridge
   getItems: () => api.get('/fridge/items'),
-  
+
   // Add new item to fridge
   addItem: (itemData) => api.post('/fridge/items', itemData),
-  
+
   // Remove item from fridge
   removeItem: (itemId) => api.delete(`/fridge/items/${itemId}`),
-  
+
   // Update item expiry
   updateItem: (itemId, data) => api.put(`/fridge/items/${itemId}`, data),
 };
@@ -27,20 +27,20 @@ export const fridgeAPI = {
 // Barcode scanning API
 export const barcodeAPI = {
   // Scan barcode and get product info
-  scanBarcode: (barcode) => api.post('/barcode/scan', { barcode }),
+  scanBarcode: (barcode) => api.get(`/getfood?barcode=${barcode}`),
 };
 
 // Shopping list API
 export const shoppingListAPI = {
   // Get shopping list
   getItems: () => api.get('/shopping-list'),
-  
+
   // Add item to shopping list
   addItem: (itemData) => api.post('/shopping-list', itemData),
-  
+
   // Update item (check/uncheck)
   updateItem: (itemId, data) => api.put(`/shopping-list/${itemId}`, data),
-  
+
   // Remove item from shopping list
   removeItem: (itemId) => api.delete(`/shopping-list/${itemId}`),
 };
@@ -63,7 +63,7 @@ export const uploadAPI = {
 export const mealPrepAPI = {
   // Get meal suggestions based on fridge contents
   getRecommendations: () => api.get('/meal-prep/recommendations'),
-  
+
   // Get specific meal suggestions for items
   getSuggestionsForItems: (itemIds) => api.post('/meal-prep/suggestions', { itemIds }),
 };

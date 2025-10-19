@@ -5,6 +5,7 @@ import { barcodeAPI, fridgeAPI, uploadAPI } from '../services/api';
 
 const AddItem = () => {
   const [showScanner, setShowScanner] = useState(false);
+  //const [showBarcodeForm, setShowBarcodeForm] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -70,23 +71,41 @@ const AddItem = () => {
     try {
       const response = await barcodeAPI.scanBarcode(barcode);
       const productData = response.data;
-      
+      console.log(productData);
+
+      const food = productData.foods[0]
+
       // Add to fridge with product data
-      await fridgeAPI.addItem({
-        name: productData.name,
-        type: productData.type || 'other',
-        expiryDate: productData.expiryDate,
+
+      setManualForm({
+        name: food.description,
+        type: food.foodCategory || 'other',
+        expirationDate: '', //NEED TO PROVIDE PAGE TO ENTER EXPIRATION DATE
         barcode: barcode,
-        productInfo: productData
+        nutritionFacts: food.foodNutrients,
+        servingCount: '', //ENTER IN NEXT PAGE
+        servingSize: '' //ENTER IN NEXT PAGE
       });
-      
-      alert('Item added to fridge successfully!');
+
+
+      /*await fridgeAPI.addItem({
+        name: food.description,
+        type: food.foodCategory || 'other',
+        expirationDate: 'fake expiration', //NEED TO PROVIDE PAGE TO ENTER EXPIRATION DATE
+        barcode: barcode,
+        nutritionFacts: food.foodNutrients,
+        servingCount: '1', //ENTER IN NEXT PAGE
+        servingSize: '1 gallon' //ENTER IN NEXT PAGE
+      });*/
+
+      //alert('Item added to fridge successfully!');
       setShowScanner(false);
     } catch (error) {
       console.error('Error scanning barcode:', error);
       alert('Error scanning barcode. Please try again.');
     } finally {
       setLoading(false);
+      setShowManualForm(true);
     }
   };
 
@@ -110,12 +129,20 @@ const AddItem = () => {
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await fridgeAPI.addItem(manualForm);
       alert('Item added to fridge successfully!');
       setShowManualForm(false);
-      setManualForm({ name: '', type: 'vegetable', expiryDate: '', quantity: 1 });
+      setManualForm({
+        name: '',
+        type: 'other',
+        expirationDate: '',
+        barcode: '',
+        nutritionFacts: [],
+        servingCount: '',
+        servingSize: ''
+      });
     } catch (error) {
       console.error('Error adding item:', error);
       alert('Error adding item. Please try again.');
@@ -129,12 +156,12 @@ const AddItem = () => {
     try {
       const response = await uploadAPI.uploadFile(file);
       const parsedItems = response.data.items;
-      
+
       // Add parsed items to fridge
       for (const item of parsedItems) {
         await fridgeAPI.addItem(item);
       }
-      
+
       alert(`Successfully added ${parsedItems.length} items to your fridge!`);
       setShowUpload(false);
     } catch (error) {
@@ -149,7 +176,7 @@ const AddItem = () => {
     <div>
       <div className="card">
         <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Add Items to Your Fridge</h2>
-        
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <button
             className="button"
@@ -159,7 +186,7 @@ const AddItem = () => {
             <Camera style={{ marginRight: '0.5rem' }} />
             Scan Barcode
           </button>
-          
+
           <button
             className="button secondary"
             onClick={() => setShowManualForm(true)}
@@ -168,7 +195,7 @@ const AddItem = () => {
             <Package style={{ marginRight: '0.5rem' }} />
             Add Manually
           </button>
-          
+
           <button
             className="button secondary"
             onClick={() => setShowUpload(true)}
@@ -264,7 +291,7 @@ const AddItem = () => {
             <button className="close-button" onClick={() => setShowManualForm(false)}>
               <X />
             </button>
-            <h3>Add Item Manually</h3>
+            <h3>Add Item</h3>
             <form onSubmit={handleManualSubmit}>
               <input
                 type="text"
@@ -274,37 +301,46 @@ const AddItem = () => {
                 onChange={(e) => setManualForm({...manualForm, name: e.target.value})}
                 required
               />
-              
-              <select
+
+              <input
+                type="text"
                 className="input"
+                placeholder="Item type"
                 value={manualForm.type}
                 onChange={(e) => setManualForm({...manualForm, type: e.target.value})}
-              >
-                <option value="vegetable">Vegetable</option>
-                <option value="fruit">Fruit</option>
-                <option value="protein">Protein</option>
-                <option value="dairy">Dairy</option>
-                <option value="other">Other</option>
-              </select>
-              
+                required
+              />
+
+              <label for="expiration">Expiration Date</label>
               <input
                 type="date"
                 className="input"
-                value={manualForm.expiryDate}
-                onChange={(e) => setManualForm({...manualForm, expiryDate: e.target.value})}
+                name="expiration"
+                value={manualForm.expirationDate}
+                onChange={(e) => setManualForm({...manualForm, expirationDate: e.target.value})}
                 required
               />
-              
+
               <input
                 type="number"
                 className="input"
                 placeholder="Quantity"
-                value={manualForm.quantity}
-                onChange={(e) => setManualForm({...manualForm, quantity: parseInt(e.target.value)})}
+                value={manualForm.servingCount}
+                onChange={(e) => setManualForm({...manualForm, servingCount: parseInt(e.target.value)})}
                 min="1"
                 required
               />
-              
+
+              <input
+                type="number"
+                className="input"
+                placeholder="Quantity Units"
+                value={manualForm.servingSize}
+                onChange={(e) => setManualForm({...manualForm, servingSize: parseInt(e.target.value)})}
+                min="1"
+                required
+              />
+
               <button type="submit" className="button" disabled={loading}>
                 {loading ? 'Adding...' : 'Add to Fridge'}
               </button>
@@ -346,7 +382,7 @@ const FileUpload = ({ onFileSelect, loading }) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       onFileSelect(e.dataTransfer.files[0]);
     }
