@@ -11,6 +11,7 @@
     "api": "cd api && flask run --no-debugger"
   },
   "dependencies": {
+    "@zxing/browser": "^0.1.5",
     "axios": "^1.12.2",
     "flask": "^0.2.10",
     "lucide-react": "^0.546.0",

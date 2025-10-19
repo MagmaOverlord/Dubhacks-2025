@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Camera, Package, Upload, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, Package, Upload, X, Square } from 'lucide-react';
+import { BrowserQRCodeReader } from '@zxing/browser';
 import { barcodeAPI, fridgeAPI, uploadAPI } from '../services/api';
 
 const AddItem = () => {
@@ -7,12 +8,62 @@ const AddItem = () => {
   const [showManualForm, setShowManualForm] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scannedCode, setScannedCode] = useState('');
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(null);
   const [manualForm, setManualForm] = useState({
     name: '',
     type: 'vegetable',
     expiryDate: '',
     quantity: 1
   });
+
+  // Scanner functions
+  const startScanner = async () => {
+    try {
+      setScanning(true);
+      const codeReader = new BrowserQRCodeReader();
+      codeReaderRef.current = codeReader;
+      
+      const videoInputDevices = await BrowserQRCodeReader.listVideoInputDevices();
+      const selectedDeviceId = videoInputDevices[0]?.deviceId;
+      
+      if (!selectedDeviceId) {
+        alert('No camera found. Please ensure your device has a camera.');
+        setScanning(false);
+        return;
+      }
+
+      await codeReader.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current,
+        (result, error) => {
+          if (result) {
+            const barcode = result.getText();
+            setScannedCode(barcode);
+            handleBarcodeScan(barcode);
+            stopScanner();
+          }
+          if (error && !error.message.includes('NotFoundException')) {
+            console.error('Scanner error:', error);
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error starting scanner:', error);
+      alert('Error accessing camera. Please check permissions.');
+      setScanning(false);
+    }
+  };
+
+  const stopScanner = () => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+      codeReaderRef.current = null;
+    }
+    setScanning(false);
+  };
 
   const handleBarcodeScan = async (barcode) => {
     setLoading(true);
@@ -38,6 +89,23 @@ const AddItem = () => {
       setLoading(false);
     }
   };
+
+  // Cleanup scanner when component unmounts or scanner closes
+  useEffect(() => {
+    return () => {
+      if (codeReaderRef.current) {
+        codeReaderRef.current.reset();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showScanner && !scanning) {
+      startScanner();
+    } else if (!showScanner && scanning) {
+      stopScanner();
+    }
+  }, [showScanner]);
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -122,26 +190,68 @@ const AddItem = () => {
             <h3>Scan Barcode</h3>
             <div className="scanner-container">
               <p>Point your camera at a barcode to scan</p>
-              <div style={{ 
-                width: '100%', 
-                height: '200px', 
-                background: '#f0f0f0', 
-                border: '2px dashed #ccc',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '1rem 0'
-              }}>
-                <p>Barcode Scanner Placeholder</p>
+              <div className="video-container">
+                <video
+                  ref={videoRef}
+                  style={{
+                    width: '100%',
+                    maxWidth: '400px',
+                    height: '300px',
+                    borderRadius: '12px',
+                    objectFit: 'cover',
+                    background: '#000'
+                  }}
+                  playsInline
+                  muted
+                />
+                {scanning && (
+                  <div className="scanner-overlay">
+                    <div className="scanner-frame"></div>
+                    <p className="scanner-text">Position barcode within the frame</p>
+                  </div>
+                )}
               </div>
-              <button 
-                className="button" 
-                onClick={() => handleBarcodeScan('1234567890123')}
-                disabled={loading}
-              >
-                {loading ? 'Scanning...' : 'Simulate Scan'}
-              </button>
+              {scannedCode && (
+                <div className="scanned-result">
+                  <p>Scanned: {scannedCode}</p>
+                </div>
+              )}
+              <div className="scanner-controls">
+                <button 
+                  className="button secondary"
+                  onClick={stopScanner}
+                  disabled={!scanning}
+                >
+                  <Square size={16} />
+                  Stop Scanner
+                </button>
+                <button 
+                  className="button"
+                  onClick={startScanner}
+                  disabled={scanning}
+                >
+                  <Camera size={16} />
+                  Start Scanner
+                </button>
+              </div>
+              
+              {/* Manual Product Entry Fallback */}
+              <div className="manual-entry-fallback">
+                <p style={{ margin: '1rem 0', color: '#666', fontSize: '0.9rem' }}>
+                  Camera not working? Add product manually:
+                </p>
+                <button 
+                  className="button"
+                  onClick={() => {
+                    setShowScanner(false);
+                    setShowManualForm(true);
+                  }}
+                  style={{ width: '100%' }}
+                >
+                  <Package size={16} />
+                  Add Product Manually
+                </button>
+              </div>
             </div>
           </div>
         </div>
