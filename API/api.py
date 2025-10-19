@@ -1,39 +1,12 @@
-from flask import Flask, jsonify, request
-import boto3, json
-
 import time
 from flask import Flask, jsonify, request
+from flask_cors import CORS, cross_origin
 import requests
 import boto3, json
 
 app = Flask(__name__)
+CORS(app)
 FOOD_DATA_KEY = "DEMO_KEY" #Replace with actual key
-
-
-@app.route('/api/time')
-def get_current_time():
-    return {'time': time.time()}
-
-@app.route('/api/getfood')
-def get_food_info():
-  print('DEBUG: Requested barcode data')
-  query = request.args.get('barcode', 'N/A')
-  if query == 'N/A':
-    query = request.args.get('search', 'N/A')
-    page = request.args.get('page', '1')
-
-  try:
-    response = requests.get(f'https://api.nal.usda.gov/fdc/v1/foods/search?query={ query }&pageSize=50&pageNumber={ page }&api_key={ FOOD_DATA_KEY }')
-    # Raises an HTTPError if the HTTP request returned an unsuccessful status code
-    response.raise_for_status()
-    data = response.json()
-  except requests.exceptions.HTTPError as http_err:
-    return jsonify({'error': f'HTTP error occurred: {http_err}'}), 500
-  except Exception as err:
-    return jsonify({'error': f'Other error occurred: {err}'}), 500
-
-  print(f'DEBUG: Sending response {data}')
-  return data
 
 s3 = boto3.client('s3')
 BUCKET_NAME = 'userfridge'
@@ -123,6 +96,27 @@ def add_item(user_id):
         save_data_to_s3(user_id, data)
         return jsonify(new_item), 201
     return jsonify({"message": "Invalid item data"}), 400
+
+@app.route('/api/getfood', methods=['GET'])
+def get_food_info():
+  print('DEBUG: Requested barcode data')
+  query = request.args.get('barcode', 'N/A')
+  if query == 'N/A':
+    query = request.args.get('search', 'N/A')
+    page = request.args.get('page', '1')
+
+  try:
+    response = requests.get(f'https://api.nal.usda.gov/fdc/v1/foods/search?query={ query }&pageSize=50&pageNumber={ page }&api_key={ FOOD_DATA_KEY }')
+    # Raises an HTTPError if the HTTP request returned an unsuccessful status code
+    response.raise_for_status()
+    data = response.json()
+  except requests.exceptions.HTTPError as http_err:
+    return jsonify({'error': f'HTTP error occurred: {http_err}'}), 500
+  except Exception as err:
+    return jsonify({'error': f'Other error occurred: {err}'}), 500
+
+  print(f'DEBUG: Sending response {data}')
+  return data
 
 
 if __name__ == '__main__':
